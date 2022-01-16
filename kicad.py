@@ -1587,6 +1587,71 @@ class KicadFcad:
             return wires[0]
         return Part.makeCompound(wires)
 
+    def makeGraphics(self,shape_type='face',thickness=0.05,holes=False,
+            fit_arcs=True,prefix=''):
+
+        self._pushLog('making graphics...',prefix=prefix)
+
+        def _wire(obj,name,label=None,fill=False):
+            return self._makeWires(obj,name,fill=fill,label=label, offset=self.pad_inflate)
+
+        def _face(obj,name,label=None):
+            objs = _wire(obj,name,label,True)
+
+            if not cut_wires and not cut_non_closed:
+                return objs
+
+            if not isinstance(objs, list):
+                objs = [objs]
+
+            inner_label = label + '_inner' if label else 'inner'
+            if cut_wires:
+                objs.append(self._makeWires(cut_wires,name,label=inner_label))
+
+            for width,elist in cut_non_closed.items():
+                l = '{}_{}'.format(inner_label, width)
+                wire = self._makeWires(elist,name,label=l)
+                # thicken non closed wire for hole cutting
+                objs.append(self._makeArea(wire, name, label=l, offset = width*0.5))
+
+            return self._makeArea(objs, name, op=1,fill=True)
+
+        _solid = _face
+
+        try:
+            func = locals()['_{}'.format(shape_type)]
+        except KeyError:
+            raise ValueError('invalid shape type: {}'.format(shape_type))
+
+        cut_wires = []
+        cut_non_closed = defaultdict(list)
+
+        self._pushLog('checking edge cuts')
+        # self._makeEdgeCuts(self.pcb, 'gr', cut_wires, cut_non_closed)
+        self._popLog()
+
+        objs = []
+        graphics = []
+        self._makeShape(self.pcb, 'gr', graphics)
+        if not self.merge_pads:
+            g = self._makeCompound(graphics,'graphics','graphics12')
+        else:
+            g = func(graphics,'graphics','graphics12')
+        
+        self._place(g,Vector(0,0,0),0)
+        objs.append(g)
+
+        if objs:
+            if shape_type=='solid':
+                objs = self._makeSolid(objs,'graphics', thickness,
+                                    fit_arcs = fit_arcs)
+            else:
+                objs = self._makeCompound(objs,'graphics',
+                                    fuse=True,fit_arcs=fit_arcs)
+            self.setColor(objs,'pad')
+
+        return objs
+    
     def makePads(self,shape_type='face',thickness=0.05,holes=False,
             fit_arcs=True,prefix=''):
 
@@ -1993,6 +2058,7 @@ class KicadFcad:
 
         for (name,offset) in (('Pads',thickness),
                               ('Tracks',0.5*thickness),
+                              ('Graphics',0.5*thickness),
                               ('Zones',0)):
 
             obj = getattr(self,'make{}'.format(name))(fit_arcs=sub_fit_arcs,
