@@ -819,9 +819,10 @@ class KicadFcad:
         self._makeLabel(obj,label)
         if links is not None:
             setattr(obj,links,shape)
-            for s in shape if isinstance(shape,(list,tuple)) else (shape,):
-                if hasattr(s,'ViewObject'):
-                    s.ViewObject.Visibility = False
+            if FreeCAD.GuiUp:
+                for s in shape if isinstance(shape,(list,tuple)) else (shape,):
+                    if hasattr(s,'ViewObject'):
+                        s.ViewObject.Visibility = False
             if hasattr(obj,'recompute'):
                 recomputeObj(obj)
         return obj
@@ -989,8 +990,9 @@ class KicadFcad:
                 ret.WorkPlane = self.work_plane
                 ret.FitArcs = fit_arcs
                 ret.Reorient = reorient
-                for o in obj:
-                    o.ViewObject.Visibility = False
+                if FreeCAD.GuiUp:
+                    for o in obj:
+                        o.ViewObject.Visibility = False
 
             recomputeObj(ret)
         else:
@@ -1048,7 +1050,8 @@ class KicadFcad:
                                     '{}_solid'.format(name),label)
         nobj.Base = obj
         nobj.Dir = Vector(0,0,height)
-        obj.ViewObject.Visibility = False
+        if FreeCAD.GuiUp:
+            obj.ViewObject.Visibility = False
         recomputeObj(nobj)
         return nobj
 
@@ -1088,10 +1091,13 @@ class KicadFcad:
             cut = self._makeObject('Part::Cut',name,label=label)
             cut.Base = base
             cut.Tool = tool
-            base.ViewObject.Visibility = False
-            tool.ViewObject.Visibility = False
-            recomputeObj(cut)
-            cut.ViewObject.ShapeColor = base.ViewObject.ShapeColor
+            if FreeCAD.GuiUp:
+                base.ViewObject.Visibility = False
+                tool.ViewObject.Visibility = False
+                recomputeObj(cut)
+                cut.ViewObject.ShapeColor = base.ViewObject.ShapeColor
+            else:
+                recomputeObj(cut)
         else:
             cut = base.cut(tool)
         self._log('cut done')
@@ -1318,7 +1324,8 @@ class KicadFcad:
             if self.add_feature:
                 if hasattr(obj.ViewObject,'MapFaceColor'):
                     obj.ViewObject.MapFaceColor = False
-                obj.ViewObject.ShapeColor = self.colors['board']
+                if FreeCAD.GuiUp:
+                    obj.ViewObject.ShapeColor = self.colors['board']
 
             if len(layers) > 1:
                 objs = [obj]
@@ -1335,7 +1342,8 @@ class KicadFcad:
                     if self.add_feature:
                         if hasattr(obj.ViewObject,'MapFaceColor'):
                             obj.ViewObject.MapFaceColor = False
-                        obj.ViewObject.ShapeColor = self.colors['board']
+                        if FreeCAD.GuiUp:
+                            obj.ViewObject.ShapeColor = self.colors['board']
                     objs.append(obj)
                 obj = self._makeCompound(objs, 'board')
         finally:
@@ -1742,7 +1750,8 @@ class KicadFcad:
             color = self.colors[otype][0]
         if hasattr(obj.ViewObject,'MapFaceColor'):
             obj.ViewObject.MapFaceColor = False
-        obj.ViewObject.ShapeColor = color
+        if FreeCAD.GuiUp:
+            obj.ViewObject.ShapeColor = color
 
 
     def makeTracks(self,shape_type='face',fit_arcs=True,
